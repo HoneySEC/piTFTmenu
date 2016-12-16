@@ -9,22 +9,64 @@ os.environ["SDL_MOUSEDRV"] = "TSLIB"
 # Initialize pygame modules individually (to avoid ALSA errors) and hide mouse
 pygame.font.init()
 pygame.display.init()
-#pygame.mouse.set_visible(0)
-
-TYPE_NONE=0
-TYPE_PROC=1
-TYPE_CMD=2
-TYPE_SVC=3
-
-CurrentPage=1
-MaxPages=3
+pygame.mouse.set_visible(0)
 
 class _Button:
     def __init__(self, ButtonText, ButtonCmd, CommandType):
 		self.ButtonText = ButtonText
 		self.ButtonCmd = ButtonCmd
 		self.CommandType = CommandType
-		
+
+TYPE_NONE=0
+TYPE_PROC=1
+TYPE_CMD=2
+TYPE_SVC=3
+TYPE_VNC=4
+
+CurrentPage=1
+MaxPages=3
+
+Sc_Button = {}
+#Page 1
+Sc_Button[1,1] = _Button("    X on TFT", "/usr/bin/sudo FRAMEBUFFER=/dev/fb1 startx", TYPE_CMD)
+Sc_Button[1,2] = _Button("   X on HDMI", "/usr/bin/sudo FRAMEBUFFER=/dev/fb0 startx", TYPE_CMD)
+Sc_Button[1,3] = _Button("    Shutdown", "/sbin/poweroff", TYPE_CMD)
+Sc_Button[1,4] = _Button("      Reboot", "/sbin/reboot", TYPE_PROC)
+Sc_Button[1,5] = _Button("        Exit", "", TYPE_NONE)
+#Page 2
+Sc_Button[2,1] = _Button("  FTP Server", "vsftpd", TYPE_SVC)
+Sc_Button[2,2] = _Button("  WWW Server", "apache2", TYPE_SVC)
+Sc_Button[2,3] = _Button("  VNC-Server", "", TYPE_VNC)
+Sc_Button[2,4] = _Button("    Terminal", "setterm -term linux -back default -fore white -clear all", TYPE_PROC)
+Sc_Button[2,5] = _Button("       MySQL", "mysql", TYPE_SVC)
+#Page 3
+
+Sc_Button[3,1] = _Button("     OpenVAS", "openvas-manager", TYPE_SVC)
+Sc_Button[3,2] = _Button("      Kismet", "/usr/bin/kismet", TYPE_CMD)
+Sc_Button[3,3] = _Button("  FruityWifi", "fruitywifi", TYPE_SVC)
+Sc_Button[3,4] = _Button("            ", "", TYPE_NONE)
+Sc_Button[3,5] = _Button("            ", "", TYPE_NONE)
+
+# colors    R    G    B
+white    = (255, 255, 255)
+tron_whi = (189, 254, 255)
+red      = (255,   0,   0)
+green    = (  0, 255,   0)
+blue     = (  0,   0, 255)
+tron_blu = (  0, 219, 232)
+black    = (  0,   0,   0)
+cyan     = ( 50, 255, 255)
+magenta  = (255,   0, 255)
+yellow   = (255, 255,   0)
+tron_yel = (255, 218,  10)
+orange   = (255, 127,   0)
+tron_ora = (255, 202,   0)
+
+# Tron theme blue
+tron_regular = tron_blu
+tron_light   = tron_whi
+tron_inverse = tron_yel
+
 # define function for printing text in a specific place with a specific colour
 def make_label(text, xpo, ypo, fontsize, colour):
     font=pygame.font.Font(None,fontsize)
@@ -140,26 +182,13 @@ def toggle_service(srvc):
 		run_cmd(start)
 		return True
 
-def DrawScreen(page):
-	# colors    R    G    B
-	white    = (255, 255, 255)
-	tron_whi = (189, 254, 255)
-	red      = (255,   0,   0)
-	green    = (  0, 255,   0)
-	blue     = (  0,   0, 255)
-	tron_blu = (  0, 219, 232)
-	black    = (  0,   0,   0)
-	cyan     = ( 50, 255, 255)
-	magenta  = (255,   0, 255)
-	yellow   = (255, 255,   0)
-	tron_yel = (255, 218,  10)
-	orange   = (255, 127,   0)
-	tron_ora = (255, 202,   0)
+def check_vnc():
+	if 'vnc :1' in commands.getoutput('/bin/ps -ef'):
+		return True
+	else:
+		return False
 
-	# Tron theme blue
-	tron_regular = tron_blu
-	tron_light   = tron_whi
-	tron_inverse = tron_yel
+def DrawScreen(page):
 
 	# Background Color
 	screen.fill(black)
@@ -186,6 +215,11 @@ def DrawScreen(page):
 				colour=green
 			else:
 				colour=red
+		elif Sc_Button[page,i].CommandType == TYPE_VNC:
+			if check_vnc():
+				colour=green
+			else:
+				colour=red
 		make_button(i, Sc_Button[page,i].ButtonText, colour)
 		
 	#Page change buttons
@@ -204,6 +238,16 @@ def button(number):
 		pygame.display.quit()
 		pygame.quit()
 		sys.exit()
+	if CurrentPage==2 and number == 3:
+        # VNC Server
+		if check_vnc():
+			run_cmd("/usr/bin/vncserver -kill :1")
+			make_button(3, Sc_Button[2,3].ButtonText,  red)
+		else:
+			run_cmd("/usr/bin/vncserver :1")
+			make_button(3, Sc_Button[2,3].ButtonText,  green)
+		return
+		
 	if number == 6:
 		# Previous page
 		CurrentPage = CurrentPage - 1
@@ -230,35 +274,6 @@ def button(number):
 			toggle_service(Sc_Button[CurrentPage, number].ButtonCmd)
 			DrawScreen(CurrentPage)
 
-Sc_Button = {}
-#Page 1
-Sc_Button[1,1] = _Button("    X on TFT", "/usr/bin/sudo FRAMEBUFFER=/dev/fb1 startx", TYPE_CMD)
-Sc_Button[1,2] = _Button("   X on HDMI", "/usr/bin/sudo FRAMEBUFFER=/dev/fb0 startx", TYPE_CMD)
-Sc_Button[1,3] = _Button("    Shutdown", "/sbin/poweroff", TYPE_CMD)
-Sc_Button[1,4] = _Button("      Reboot", "/sbin/reboot", TYPE_PROC)
-Sc_Button[1,5] = _Button("        Exit", "", TYPE_NONE)
-#Page 2
-Sc_Button[2,1] = _Button("  FTP Server", "vsftpd", TYPE_SVC)
-Sc_Button[2,2] = _Button("  WWW Server", "apache2", TYPE_SVC)
-Sc_Button[2,3] = _Button("     OpenVAS", "openvas-manager", TYPE_SVC)
-Sc_Button[2,4] = _Button("            ", "", TYPE_NONE)
-Sc_Button[2,5] = _Button("       MySQL", "mysql", TYPE_SVC)
-#Page 3
-Sc_Button[3,1] = _Button("    Terminal", "setterm -term linux -back default -fore white -clear all", TYPE_PROC)
-Sc_Button[3,2] = _Button("      Kismet", "/usr/bin/kismet", TYPE_CMD)
-Sc_Button[3,3] = _Button("            ", "", TYPE_NONE)
-Sc_Button[3,4] = _Button("            ", "", TYPE_NONE)
-Sc_Button[3,5] = _Button("            ", "", TYPE_NONE)
-#3
-#make_button(" WWW Server", 30, 105, 55, 210, green)
-#make_button("   FTP Server", 260, 105, 55, 210, green)
-#make_button("   FTP Server", 260, 105, 55, 210, tron_light)
-#make_button("  VNC-Server",  30, 180, 55, 210, green)
-#make_button("  VNC-Server", 30, 180, 55, 210, tron_light)
-#make_button("    Metasploit ", 260, 180, 55, 210, tron_light)
-#make_button("      MySQL", 30, 105, 55, 210, green)
-#make_button("    OpenVAS", 260, 180, 55, 210, green)
-
 #set size of the screen
 size = width, height = 480, 320
 screen = pygame.display.set_mode(size)
@@ -276,6 +291,6 @@ while 1:
             if event.key == K_ESCAPE:
                 sys.exit()
     pygame.display.update()
-    ## Reduce CPU utilisation
+    ## Reduce CPU utilization
     time.sleep(0.1)
 
