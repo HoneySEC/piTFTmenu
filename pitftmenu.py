@@ -22,6 +22,7 @@ TYPE_PROC=1
 TYPE_CMD=2
 TYPE_SVC=3
 TYPE_VNC=4
+TYPE_EXIT=5
 
 CurrentPage=1
 MaxPages=3
@@ -30,9 +31,9 @@ Sc_Button = {}
 #Page 1
 Sc_Button[1,1] = _Button("    X on TFT", "/usr/bin/sudo FRAMEBUFFER=/dev/fb1 startx", TYPE_CMD)
 Sc_Button[1,2] = _Button("   X on HDMI", "/usr/bin/sudo FRAMEBUFFER=/dev/fb0 startx", TYPE_CMD)
-Sc_Button[1,3] = _Button("    Shutdown", "/sbin/poweroff", TYPE_CMD)
+Sc_Button[1,3] = _Button("    Shutdown", "/sbin/poweroff", TYPE_PROC)
 Sc_Button[1,4] = _Button("      Reboot", "/sbin/reboot", TYPE_PROC)
-Sc_Button[1,5] = _Button("        Exit", "", TYPE_NONE)
+Sc_Button[1,5] = _Button("        Exit", "", TYPE_EXIT)
 #Page 2
 Sc_Button[2,1] = _Button("  FTP Server", "vsftpd", TYPE_SVC)
 Sc_Button[2,2] = _Button("  WWW Server", "apache2", TYPE_SVC)
@@ -229,32 +230,13 @@ def DrawScreen(page):
 # Define each button press action
 def button(number):
 	global CurrentPage,MaxPages
-	if CurrentPage==1 and number == 3:
-		# exit
-		pygame.quit()
-		process = subprocess.call("setterm -term linux -back default -fore white -clear all", shell=True)
-		sys.exit()
-	if CurrentPage==1 and number == 5:
-		pygame.display.quit()
-		pygame.quit()
-		sys.exit()
-	if CurrentPage==2 and number == 3:
-        # VNC Server
-		if check_vnc():
-			run_cmd("/usr/bin/vncserver -kill :1")
-			make_button(3, Sc_Button[2,3].ButtonText,  red)
-		else:
-			run_cmd("/usr/bin/vncserver :1")
-			make_button(3, Sc_Button[2,3].ButtonText,  green)
-		return
-		
 	if number == 6:
 		# Previous page
 		CurrentPage = CurrentPage - 1
 		if CurrentPage == 0:
 			CurrentPage = MaxPages
 		DrawScreen(CurrentPage)
-	if number == 7:
+	elif number == 7:
         # next page
 		CurrentPage = CurrentPage + 1
 		if CurrentPage > MaxPages:
@@ -273,6 +255,17 @@ def button(number):
 		elif Sc_Button[CurrentPage, number].CommandType == TYPE_SVC:
 			toggle_service(Sc_Button[CurrentPage, number].ButtonCmd)
 			DrawScreen(CurrentPage)
+		elif Sc_Button[CurrentPage, number].CommandType == TYPE_VNC:
+			if check_vnc():
+				run_cmd("/usr/bin/vncserver -kill :1")
+				make_button(3, Sc_Button[2,3].ButtonText,  red)
+			else:
+				run_cmd("/usr/bin/vncserver :1")
+				make_button(3, Sc_Button[2,3].ButtonText,  green)
+		elif Sc_Button[CurrentPage, number].CommandType == TYPE_EXIT:
+			pygame.display.quit()
+			pygame.quit()
+			sys.exit()
 
 #set size of the screen
 size = width, height = 480, 320
